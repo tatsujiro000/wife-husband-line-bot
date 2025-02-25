@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 // 環境変数の読み込み
 dotenv.config();
 
+// 環境変数のデバッグ出力
+console.log('環境変数の読み込み状況:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('LINE_CHANNEL_SECRET_WIFE exists:', !!process.env.LINE_CHANNEL_SECRET_WIFE);
+console.log('LINE_CHANNEL_ACCESS_TOKEN_WIFE exists:', !!process.env.LINE_CHANNEL_ACCESS_TOKEN_WIFE);
+console.log('LINE_CHANNEL_SECRET_HUSBAND exists:', !!process.env.LINE_CHANNEL_SECRET_HUSBAND);
+console.log('LINE_CHANNEL_ACCESS_TOKEN_HUSBAND exists:', !!process.env.LINE_CHANNEL_ACCESS_TOKEN_HUSBAND);
+
 // LINE Bot設定（奥様用）
 export const lineBotConfigWife = {
   channelSecret: process.env.LINE_CHANNEL_SECRET_WIFE || '',
