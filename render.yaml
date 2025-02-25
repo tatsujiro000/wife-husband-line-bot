@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: wife-husband-line-bot
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LINE_CHANNEL_SECRET_WIFE
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN_WIFE
+        sync: false
+      - key: LINE_CHANNEL_SECRET_HUSBAND
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN_HUSBAND
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: DIFY_API_KEY
+        sync: false
+      - key: DIFY_API_URL
+        sync: false
