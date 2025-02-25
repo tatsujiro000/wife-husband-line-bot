@@ -1,7 +1,8 @@
 import express from 'express';
-import { middleware } from '@line/bot-sdk';
+import { middleware, SignatureValidationFailed } from '@line/bot-sdk';
 import { lineBotConfigWife, lineBotConfigHusband } from '../config';
 import { handleWifeMessage, handleHusbandMessage } from '../services/line';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -15,6 +16,37 @@ console.log('LINE Bot Config Husband:', {
   channelSecret: lineBotConfigHusband.channelSecret ? `${lineBotConfigHusband.channelSecret.substring(0, 5)}...(${lineBotConfigHusband.channelSecret.length}文字)` : 'undefined',
   channelAccessToken: lineBotConfigHusband.channelAccessToken ? `${lineBotConfigHusband.channelAccessToken.substring(0, 5)}...(${lineBotConfigHusband.channelAccessToken.length}文字)` : 'undefined',
 });
+
+// カスタム署名検証ミドルウェア
+const validateSignature = (channelSecret: string) => {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const signature = req.headers['x-line-signature'] as string;
+    
+    if (!signature) {
+      next(new SignatureValidationFailed('no signature'));
+      return;
+    }
+    
+    const body = req.rawBody || '';
+    console.log('Raw body for signature validation:', body);
+    
+    const generatedSignature = crypto
+      .createHmac('SHA256', channelSecret)
+      .update(body)
+      .digest('base64');
+    
+    console.log('計算された署名:', generatedSignature);
+    console.log('受信した署名:', signature);
+    console.log('署名一致:', generatedSignature === signature);
+    
+    if (generatedSignature !== signature) {
+      next(new SignatureValidationFailed('signature validation failed'));
+      return;
+    }
+    
+    next();
+  };
+};
 
 // 署名検証をスキップするミドルウェア（テスト用）
 const skipSignatureValidation = (req, res, next) => {
@@ -83,23 +115,8 @@ router.post('/test-webhook/husband', skipSignatureValidation, (req, res) => {
 router.post('/webhook/wife', (req, res, next) => {
   console.log('Wife webhook headers:', req.headers);
   console.log('Wife webhook signature:', req.headers['x-line-signature']);
-  
-  // 署名検証のデバッグ
-  if (req.headers['x-line-signature'] && lineBotConfigWife.channelSecret) {
-    const crypto = require('crypto');
-    const body = JSON.stringify(req.body);
-    console.log('Wife webhook body for signature:', body);
-    const signature = crypto
-      .createHmac('SHA256', lineBotConfigWife.channelSecret)
-      .update(body)
-      .digest('base64');
-    console.log('計算された署名:', signature);
-    console.log('受信した署名:', req.headers['x-line-signature']);
-    console.log('署名一致:', signature === req.headers['x-line-signature']);
-  }
-  
   next();
-}, middleware(lineBotConfigWife), (req, res) => {
+}, validateSignature(lineBotConfigWife.channelSecret), (req, res) => {
   Promise.all(req.body.events.map(handleWifeMessage))
     .then(() => res.status(200).end())
     .catch((err) => {
@@ -112,23 +129,8 @@ router.post('/webhook/wife', (req, res, next) => {
 router.post('/webhook/husband', (req, res, next) => {
   console.log('Husband webhook headers:', req.headers);
   console.log('Husband webhook signature:', req.headers['x-line-signature']);
-  
-  // 署名検証のデバッグ
-  if (req.headers['x-line-signature'] && lineBotConfigHusband.channelSecret) {
-    const crypto = require('crypto');
-    const body = JSON.stringify(req.body);
-    console.log('Husband webhook body for signature:', body);
-    const signature = crypto
-      .createHmac('SHA256', lineBotConfigHusband.channelSecret)
-      .update(body)
-      .digest('base64');
-    console.log('計算された署名:', signature);
-    console.log('受信した署名:', req.headers['x-line-signature']);
-    console.log('署名一致:', signature === req.headers['x-line-signature']);
-  }
-  
   next();
-}, middleware(lineBotConfigHusband), (req, res) => {
+}, validateSignature(lineBotConfigHusband.channelSecret), (req, res) => {
   Promise.all(req.body.events.map(handleHusbandMessage))
     .then(() => res.status(200).end())
     .catch((err) => {

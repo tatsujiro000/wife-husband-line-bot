@@ -4,6 +4,15 @@ import { validateConfig } from './config';
 import lineRoutes from './routes/line';
 import apiRoutes from './routes/api';
 
+// Request型を拡張してrawBodyプロパティを追加
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: string;
+    }
+  }
+}
+
 // 設定の検証
 if (!validateConfig()) {
   console.error('必要な環境変数が設定されていません。');
@@ -16,7 +25,27 @@ const app = express();
 app.use(cors());
 
 // LINE Webhookのために生のリクエストボディを保持
-app.use('/line/webhook', express.raw({ type: 'application/json' }));
+// LINE SDKの署名検証のために、リクエストボディを文字列として保持する必要がある
+app.use('/line/webhook', (req, res, next) => {
+  let data = '';
+  req.setEncoding('utf8');
+  
+  req.on('data', (chunk) => {
+    data += chunk;
+  });
+  
+  req.on('end', () => {
+    req.rawBody = data;
+    try {
+      req.body = JSON.parse(data);
+      console.log('Parsed webhook body:', req.body);
+    } catch (error) {
+      console.error('Error parsing webhook body:', error);
+      req.body = {};
+    }
+    next();
+  });
+});
 
 // その他のルートではJSONをパース
 app.use(express.json());
@@ -25,18 +54,8 @@ app.use(express.json());
 app.use((req, res, next) => {
   console.log('Request path:', req.path);
   console.log('Content-Type:', req.headers['content-type']);
-  if (req.path.startsWith('/line/webhook')) {
-    console.log('Raw body available:', !!req.body);
-    if (req.body) {
-      try {
-        // 生のバッファをJSONとしてパース
-        const jsonBody = JSON.parse(req.body.toString());
-        console.log('Parsed webhook body:', jsonBody);
-        req.body = jsonBody; // パースしたボディを設定
-      } catch (error) {
-        console.error('Error parsing webhook body:', error);
-      }
-    }
+  if (!req.path.startsWith('/line/webhook')) {
+    console.log('Request body:', req.body);
   }
   next();
 });
