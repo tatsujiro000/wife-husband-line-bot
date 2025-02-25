@@ -34,7 +34,9 @@ export const analyzeGrumble = async (text: string): Promise<SentimentAnalysisRes
 
   try {
     const response = await difyClient.post('/chat-messages', {
-      inputs: {},
+      inputs: {
+        message: text  // 必須のmessageフィールドを追加
+      },
       query: text,
       response_mode: 'blocking',
       user: 'wife-bot-system',
@@ -81,7 +83,9 @@ ${grumbles.map((g, i) => `${i + 1}. ${g.summary || '要約なし'}\n原文: "${g
 `;
 
     const response = await difyClient.post('/chat-messages', {
-      inputs: {},
+      inputs: {
+        message: prompt  // 必須のmessageフィールドを追加
+      },
       query: prompt,
       response_mode: 'blocking',
       user: 'husband-bot-system',
@@ -134,7 +138,9 @@ ${recentGrumbles.map((g, i) => `${i + 1}. "${g.original_text}"`).join('\n')}
 `;
 
     const response = await difyClient.post('/chat-messages', {
-      inputs: {},
+      inputs: {
+        message: prompt  // 必須のmessageフィールドを追加
+      },
       query: prompt,
       response_mode: 'blocking',
       user: 'wife-care-system',
