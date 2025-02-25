@@ -3,6 +3,7 @@ import cors from 'cors';
 import { validateConfig } from './config';
 import lineRoutes from './routes/line';
 import apiRoutes from './routes/api';
+import { json } from 'body-parser';
 
 // Request型を拡張してrawBodyプロパティを追加
 declare global {
@@ -27,17 +28,18 @@ app.use(cors());
 // LINE Webhookのために生のリクエストボディを保持
 // LINE SDKの署名検証のために、リクエストボディを文字列として保持する必要がある
 app.use('/line/webhook', (req, res, next) => {
-  let data = '';
-  req.setEncoding('utf8');
+  const chunks: Buffer[] = [];
   
-  req.on('data', (chunk) => {
-    data += chunk;
+  req.on('data', (chunk: Buffer) => {
+    chunks.push(chunk);
   });
   
   req.on('end', () => {
-    req.rawBody = data;
+    const rawBody = Buffer.concat(chunks).toString('utf8');
+    req.rawBody = rawBody;
+    
     try {
-      req.body = JSON.parse(data);
+      req.body = JSON.parse(rawBody);
       console.log('Parsed webhook body:', req.body);
     } catch (error) {
       console.error('Error parsing webhook body:', error);
@@ -48,7 +50,7 @@ app.use('/line/webhook', (req, res, next) => {
 });
 
 // その他のルートではJSONをパース
-app.use(express.json());
+app.use(json());
 
 // リクエストボディのデバッグ用ミドルウェア
 app.use((req, res, next) => {
