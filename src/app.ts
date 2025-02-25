@@ -3,7 +3,6 @@ import cors from 'cors';
 import { validateConfig } from './config';
 import lineRoutes from './routes/line';
 import apiRoutes from './routes/api';
-import healthRoutes from './routes/health';
 
 // 設定の検証
 if (!validateConfig()) {
@@ -45,6 +44,17 @@ app.use((req, res, next) => {
 // ルートの設定
 app.use('/line', lineRoutes);
 app.use('/api', apiRoutes);
-app.use('/', healthRoutes);
+
+// ヘルスチェックエンドポイント
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: '奥様の愚痴を旦那様に伝えるLINE Botシステム',
+    version: '1.0.0',
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 export default app; 
