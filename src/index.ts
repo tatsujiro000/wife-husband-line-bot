@@ -4,6 +4,7 @@ import { serverConfig, validateConfig } from './config';
 import lineRoutes from './routes/line';
 import apiRoutes from './routes/api';
 import { initScheduler } from './services/scheduler';
+import appInstance from './app';
 
 // 環境変数の検証
 if (!validateConfig()) {
@@ -37,7 +38,7 @@ app.get('/', (req, res) => {
 });
 
 // サーバーの起動
-app.listen(serverConfig.port, () => {
+const server = appInstance.listen(serverConfig.port, () => {
   console.log(`Server is running on port ${serverConfig.port} in ${serverConfig.nodeEnv} mode`);
   
   // スケジューラーの初期化
@@ -47,12 +48,18 @@ app.listen(serverConfig.port, () => {
   process.on('SIGTERM', () => {
     console.log('SIGTERM received, shutting down gracefully');
     clearInterval(scheduler);
-    process.exit(0);
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
   });
   
   process.on('SIGINT', () => {
     console.log('SIGINT received, shutting down gracefully');
     clearInterval(scheduler);
-    process.exit(0);
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
   });
 }); 
