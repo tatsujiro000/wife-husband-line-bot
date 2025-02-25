@@ -40,6 +40,45 @@ router.post('/test-webhook', (req, res) => {
   res.status(200).json({ status: 'success', message: 'Test webhook received' });
 });
 
+// 署名検証をスキップするテスト用のエンドポイント
+router.post('/test-webhook/wife', skipSignatureValidation, (req, res) => {
+  console.log('Wife test webhook received:', req.body);
+  try {
+    if (req.body.events && Array.isArray(req.body.events)) {
+      Promise.all(req.body.events.map(handleWifeMessage))
+        .then(() => res.status(200).json({ status: 'success', message: 'Wife test webhook processed' }))
+        .catch((err) => {
+          console.error('Error in wife test webhook:', err);
+          res.status(500).json({ status: 'error', message: err.message });
+        });
+    } else {
+      res.status(200).json({ status: 'success', message: 'No events to process' });
+    }
+  } catch (err) {
+    console.error('Error in wife test webhook:', err);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+router.post('/test-webhook/husband', skipSignatureValidation, (req, res) => {
+  console.log('Husband test webhook received:', req.body);
+  try {
+    if (req.body.events && Array.isArray(req.body.events)) {
+      Promise.all(req.body.events.map(handleHusbandMessage))
+        .then(() => res.status(200).json({ status: 'success', message: 'Husband test webhook processed' }))
+        .catch((err) => {
+          console.error('Error in husband test webhook:', err);
+          res.status(500).json({ status: 'error', message: err.message });
+        });
+    } else {
+      res.status(200).json({ status: 'success', message: 'No events to process' });
+    }
+  } catch (err) {
+    console.error('Error in husband test webhook:', err);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // 奥様用LINE Botのwebhookルート
 router.post('/webhook/wife', (req, res, next) => {
   console.log('Wife webhook headers:', req.headers);
@@ -49,6 +88,7 @@ router.post('/webhook/wife', (req, res, next) => {
   if (req.headers['x-line-signature'] && lineBotConfigWife.channelSecret) {
     const crypto = require('crypto');
     const body = JSON.stringify(req.body);
+    console.log('Wife webhook body for signature:', body);
     const signature = crypto
       .createHmac('SHA256', lineBotConfigWife.channelSecret)
       .update(body)
@@ -77,6 +117,7 @@ router.post('/webhook/husband', (req, res, next) => {
   if (req.headers['x-line-signature'] && lineBotConfigHusband.channelSecret) {
     const crypto = require('crypto');
     const body = JSON.stringify(req.body);
+    console.log('Husband webhook body for signature:', body);
     const signature = crypto
       .createHmac('SHA256', lineBotConfigHusband.channelSecret)
       .update(body)
