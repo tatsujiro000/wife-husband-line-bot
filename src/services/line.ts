@@ -11,6 +11,13 @@ function createMockClient() {
   return {
     replyMessage: async (token: string, message: any) => {
       console.log('Mock reply message:', { token, message });
+      
+      // テスト用のreplyTokenの場合はエラーをスローしない
+      if (token === 'test-reply-token') {
+        console.log('テスト用のreplyTokenを検出しました。実際のAPI呼び出しをスキップします。');
+        return Promise.resolve({});
+      }
+      
       return Promise.resolve({});
     },
     pushMessage: async (to: string, message: any) => {
@@ -30,6 +37,11 @@ const husbandBotClient = isDevelopment
   ? createMockClient() 
   : new Client(lineBotConfigHusband);
 
+// テスト用のreplyTokenかどうかを確認する関数
+const isTestReplyToken = (token: string): boolean => {
+  return token === 'test-reply-token';
+};
+
 // 奥様からのメッセージ処理
 export const handleWifeMessage = async (event: WebhookEvent): Promise<void> => {
   if (event.type !== 'message' || event.message.type !== 'text') {
@@ -38,6 +50,7 @@ export const handleWifeMessage = async (event: WebhookEvent): Promise<void> => {
 
   const { userId } = event.source;
   const { text } = event.message;
+  const isTestToken = isTestReplyToken(event.replyToken);
 
   try {
     // 愚痴を分析
@@ -55,30 +68,50 @@ export const handleWifeMessage = async (event: WebhookEvent): Promise<void> => {
     };
     await saveGrumble(grumbleData);
 
-    // 奥様に返信
-    await wifeBotClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '愚痴を受け取りました。旦那様に適切に伝えます。',
-    });
+    // テスト用のreplyTokenの場合はログ出力のみ
+    if (isTestToken && isDevelopment) {
+      console.log('テスト用のreplyTokenのため、実際の返信はスキップします。返信内容:', {
+        type: 'text',
+        text: '愚痴を受け取りました。旦那様に適切に伝えます。',
+      });
+    } else {
+      // 奥様に返信
+      await wifeBotClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '愚痴を受け取りました。旦那様に適切に伝えます。',
+      });
+    }
 
     // 強いネガティブ感情がある場合は気遣いメッセージを送信
     if (analysisResult.sentiment === 'negative' && analysisResult.score > 0.7) {
       const careMessage = await generateCareMessageForWife([grumbleData]);
       if (careMessage) {
-        await wifeBotClient.pushMessage(userId || '', {
-          type: 'text',
-          text: careMessage,
-        });
+        if (isTestToken && isDevelopment) {
+          console.log('テスト用のため、気遣いメッセージの送信をスキップします。メッセージ内容:', careMessage);
+        } else {
+          await wifeBotClient.pushMessage(userId || '', {
+            type: 'text',
+            text: careMessage,
+          });
+        }
       }
     }
   } catch (error) {
     console.error('Error handling wife message:', error);
     
-    // エラー時の返信
-    await wifeBotClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'すみません、メッセージの処理中にエラーが発生しました。しばらくしてからもう一度お試しください。',
-    });
+    // テスト用のreplyTokenの場合はログ出力のみ
+    if (isTestToken && isDevelopment) {
+      console.log('テスト用のreplyTokenのため、エラー返信はスキップします。エラー返信内容:', {
+        type: 'text',
+        text: 'すみません、メッセージの処理中にエラーが発生しました。しばらくしてからもう一度お試しください。',
+      });
+    } else {
+      // エラー時の返信
+      await wifeBotClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'すみません、メッセージの処理中にエラーが発生しました。しばらくしてからもう一度お試しください。',
+      });
+    }
   }
 };
 
@@ -90,6 +123,7 @@ export const handleHusbandMessage = async (event: WebhookEvent): Promise<void> =
 
   const { userId } = event.source;
   const { text } = event.message;
+  const isTestToken = isTestReplyToken(event.replyToken);
 
   try {
     // コマンド処理
@@ -98,59 +132,35 @@ export const handleHusbandMessage = async (event: WebhookEvent): Promise<void> =
       return;
     }
 
-    // 通常のメッセージは単に返信
-    await husbandBotClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'メッセージを受け取りました。設定を変更するには、以下のコマンドを使用してください：\n/frequency [数値] - メッセージの頻度を設定\n/time [時間] - メッセージの送信時間を設定\n/help - ヘルプを表示',
-    });
+    // テスト用のreplyTokenの場合はログ出力のみ
+    if (isTestToken && isDevelopment) {
+      console.log('テスト用のreplyTokenのため、実際の返信はスキップします。返信内容:', {
+        type: 'text',
+        text: 'メッセージを受け取りました。設定を変更するには、以下のコマンドを使用してください：\n/frequency [数値] - メッセージの頻度を設定\n/time [時間] - メッセージの送信時間を設定\n/help - ヘルプを表示',
+      });
+    } else {
+      // 通常のメッセージは単に返信
+      await husbandBotClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'メッセージを受け取りました。設定を変更するには、以下のコマンドを使用してください：\n/frequency [数値] - メッセージの頻度を設定\n/time [時間] - メッセージの送信時間を設定\n/help - ヘルプを表示',
+      });
+    }
   } catch (error) {
     console.error('Error handling husband message:', error);
     
-    // エラー時の返信
-    await husbandBotClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'すみません、メッセージの処理中にエラーが発生しました。しばらくしてからもう一度お試しください。',
-    });
-  }
-};
-
-// 旦那様へのメッセージ送信
-export const sendMessageToHusband = async (userId: string, message: string): Promise<void> => {
-  try {
-    await husbandBotClient.pushMessage(userId, {
-      type: 'text',
-      text: message,
-    });
-
-    // メッセージ履歴を保存
-    await saveMessageHistory({
-      sender_id: 'system',
-      receiver_id: userId,
-      message_content: message,
-    });
-  } catch (error) {
-    console.error('Error sending message to husband:', error);
-    throw error;
-  }
-};
-
-// 奥様へのメッセージ送信
-export const sendMessageToWife = async (userId: string, message: string): Promise<void> => {
-  try {
-    await wifeBotClient.pushMessage(userId, {
-      type: 'text',
-      text: message,
-    });
-
-    // メッセージ履歴を保存
-    await saveMessageHistory({
-      sender_id: 'system',
-      receiver_id: userId,
-      message_content: message,
-    });
-  } catch (error) {
-    console.error('Error sending message to wife:', error);
-    throw error;
+    // テスト用のreplyTokenの場合はログ出力のみ
+    if (isTestToken && isDevelopment) {
+      console.log('テスト用のreplyTokenのため、エラー返信はスキップします。エラー返信内容:', {
+        type: 'text',
+        text: 'すみません、メッセージの処理中にエラーが発生しました。しばらくしてからもう一度お試しください。',
+      });
+    } else {
+      // エラー時の返信
+      await husbandBotClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'すみません、メッセージの処理中にエラーが発生しました。しばらくしてからもう一度お試しください。',
+      });
+    }
   }
 };
 
@@ -270,4 +280,44 @@ const handleHusbandCommand = async (event: WebhookEvent): Promise<void> => {
     type: 'text',
     text: '無効なコマンドです。以下のコマンドを使用してください：\n/frequency [数値] - メッセージの頻度を設定\n/time [時間] - メッセージの送信時間を設定\n/settings - 現在の設定を確認\n/help - ヘルプを表示',
   });
+};
+
+// 旦那様へのメッセージ送信
+export const sendMessageToHusband = async (userId: string, message: string): Promise<void> => {
+  try {
+    await husbandBotClient.pushMessage(userId, {
+      type: 'text',
+      text: message,
+    });
+
+    // メッセージ履歴を保存
+    await saveMessageHistory({
+      sender_id: 'system',
+      receiver_id: userId,
+      message_content: message,
+    });
+  } catch (error) {
+    console.error('Error sending message to husband:', error);
+    throw error;
+  }
+};
+
+// 奥様へのメッセージ送信
+export const sendMessageToWife = async (userId: string, message: string): Promise<void> => {
+  try {
+    await wifeBotClient.pushMessage(userId, {
+      type: 'text',
+      text: message,
+    });
+
+    // メッセージ履歴を保存
+    await saveMessageHistory({
+      sender_id: 'system',
+      receiver_id: userId,
+      message_content: message,
+    });
+  } catch (error) {
+    console.error('Error sending message to wife:', error);
+    throw error;
+  }
 }; 
